@@ -153,8 +153,8 @@ impl FindNul for str {
             .as_bytes()
             .windows(1)
             .position(|window| window == [0u8])
-            .unwrap_or_else(|| self.len());
-        self[..nul_pos].as_bytes()
+            .unwrap_or(self.len());
+        &self.as_bytes()[..nul_pos]
     }
 }
 
@@ -163,7 +163,7 @@ impl FindNul for [u8] {
         let nul_pos = self
             .windows(1)
             .position(|window| window == [0u8])
-            .unwrap_or_else(|| self.len());
+            .unwrap_or(self.len());
         self[..nul_pos].as_ref()
     }
 }
@@ -184,14 +184,13 @@ fn consteq(hash: &str, calchash: Result<String>) -> bool {
 
 mod random {
     use crate::enc_dec::bcrypt_hash64_encode;
-    use rand::distributions::Standard;
-    use rand::rngs::OsRng;
+    use rand::distr::StandardUniform;
     use rand::{random, Rng};
 
     pub fn gen_salt_str(chars: usize) -> String {
-        let bytes = ((chars + 3) / 4) * 3;
-        let rv = OsRng
-            .sample_iter(&Standard)
+        let bytes = chars.div_ceil(4) * 3;
+        let rv = rand::rng()
+            .sample_iter(&StandardUniform)
             .take(bytes)
             .collect::<Vec<u8>>();
         let mut sstr = bcrypt_hash64_encode(&rv);
@@ -202,7 +201,7 @@ mod random {
     }
 
     pub fn gen_salt_bytes(bytes: &mut [u8]) {
-        OsRng.fill(bytes);
+        rand::rng().fill(bytes);
     }
 
     pub fn vary_rounds(ceil: u32) -> u32 {
@@ -241,6 +240,7 @@ mod parse {
         fn take_until(&mut self, ac: u8) -> Option<Self::Elem>;
 
         /// Returns `true` if the string is not drained.
+        #[allow(dead_code)]
         fn at_end(&mut self) -> bool;
     }
 
@@ -274,11 +274,7 @@ mod parse {
             } else {
                 let endp = self.pos + n;
                 self.pos = endp + if endp == self.len { 1 } else { 0 };
-                if let Ok(s) = str::from_utf8(&self.bp[sp..endp]) {
-                    Some(s)
-                } else {
-                    None
-                }
+                str::from_utf8(&self.bp[sp..endp]).ok()
             }
         }
 
@@ -295,11 +291,7 @@ mod parse {
             }
             let oldp = self.pos;
             self.pos = sp + 1;
-            if let Ok(s) = str::from_utf8(&self.bp[oldp..sp]) {
-                Some(s)
-            } else {
-                None
-            }
+            str::from_utf8(&self.bp[oldp..sp]).ok()
         }
 
         fn at_end(&mut self) -> bool {

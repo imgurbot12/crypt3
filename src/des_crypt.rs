@@ -1893,7 +1893,7 @@ pub fn des_cipher(input: u64, keyword: u64, salt: u32, mut num_iter: u32) -> u64
         let mut out = 0u64;
         let mut i = 3;
         while i >= 0 {
-            let t = (c & 0xFF) as u32;
+            let t = c & 0xFF;
             c >>= 8;
             let tp = p[(i << 1) as usize][(t & 0xF) as usize];
             out |= tp;
@@ -1961,9 +1961,7 @@ pub fn des_cipher(input: u64, keyword: u64, salt: u32, mut num_iter: u32) -> u64
                 ^ SPE[6][((B >> 10) & 0x3F) as usize]
                 ^ SPE[7][((B >> 2) & 0x3F) as usize];
         }
-        L ^= R;
-        R ^= L;
-        L ^= R;
+        std::mem::swap(&mut L, &mut R);
     }
     L = (((L >> 35) & 0x0F0F0F0F) | (((L & 0xFFFFFFFF) << 1) & 0xF0F0F0F0)) << 32
         | (((R >> 35) & 0x0F0F0F0F) | (((R & 0xFFFFFFFF) << 1) & 0xF0F0F0F0));
@@ -2020,7 +2018,7 @@ pub fn bsdi_crypt(key: &[u8], salt: &str, rounds: u32) -> Result<String> {
     let salt_val = decode_val(salt, bsdi_crypt::SALT_LEN)?;
     Ok(format!(
         "_{}{}{}",
-        encode_val(rounds as u32, bsdi_crypt::SALT_LEN),
+        encode_val(rounds, bsdi_crypt::SALT_LEN),
         encode_val(salt_val, bsdi_crypt::SALT_LEN),
         do_0_crypt(keyword, salt_val, rounds)
     ))

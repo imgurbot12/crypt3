@@ -104,7 +104,7 @@ where
 {
     let hs = IHS::into_hash_setup(param, parse_bsdi_hash)?;
     let rounds = if let Some(r) = hs.rounds {
-        if r < MIN_ROUNDS || r > MAX_ROUNDS {
+        if !(MIN_ROUNDS..=MAX_ROUNDS).contains(&r) {
             return Err(Error::InvalidRounds);
         }
         r

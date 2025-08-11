@@ -30,8 +30,8 @@
 //! * __Salt length__: 0 to 16 characters. Default is 16.
 //!
 //! * __Rounds__: 1000 to 999999999. Default is 5000. If a number
-//! outside of the range is chosen, it is coerced to the nearest
-//! limit.
+//!   outside of the range is chosen, it is coerced to the nearest
+//!   limit.
 //!
 //! # Hash Format
 //!

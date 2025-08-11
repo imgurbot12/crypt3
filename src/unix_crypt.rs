@@ -19,13 +19,13 @@
 //!     "password").unwrap(), "xOAFZqRz5RduI");
 //! assert_eq!(unix_crypt::verify("password","xOAFZqRz5RduI"),
 //!     true);
-//!     
+//!
 //! ```
 //!
 //! # Parameters
 //!
 //! * __Password length__: effectively eight 7-bit characters; anything
-//! longer is ignored.
+//!   longer is ignored.
 //!
 //! * __Salt length__: 2 characters (12 bits).
 //!

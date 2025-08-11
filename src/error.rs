@@ -30,7 +30,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::RandomError(ref err) => write!(f, "{}", err),
+            Error::RandomError(ref err) => write!(f, "{err}"),
             Error::EncodingError => write!(f, "Invalid encoding"),
             Error::InsufficientLength => write!(f, "Encoded value is too short"),
             Error::InvalidRounds => write!(f, "Invalid rounds value"),

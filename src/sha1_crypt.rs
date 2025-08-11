@@ -31,7 +31,7 @@
 //! * __Salt length__: 0 to 64 characters. Default is 8.
 //!
 //! * __Rounds__: 1 to 2<sup>32</sup>-1. Default is 24680, which
-//! is slightly varied if chosen.
+//!   is slightly varied if chosen.
 //!
 //! # Hash Format
 //!
@@ -66,7 +66,7 @@ fn do_sha1_crypt(pass: &[u8], salt: &str, rounds: u32) -> Result<String> {
     let mut dummy_buf = [0u8; 48];
     bcrypt_hash64_decode(salt, &mut dummy_buf)?;
     let mut hmac = Hmac::<Sha1>::new_from_slice(pass).map_err(|_| Error::InsufficientLength)?;
-    hmac.update(format!("{}$sha1${}", salt, rounds).as_bytes());
+    hmac.update(format!("{salt}$sha1${rounds}").as_bytes());
     let mut result = hmac.finalize();
     for _ in 1..rounds {
         let mut hmac = Hmac::<Sha1>::new_from_slice(pass).map_err(|_| Error::InsufficientLength)?;

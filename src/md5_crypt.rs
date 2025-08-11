@@ -81,7 +81,7 @@ fn do_md5_crypt(pass: &[u8], salt: &str) -> Result<String> {
     while plen > 0 {
         match plen & 1 {
             0 => dgst_a.update(&pass[..1]),
-            1 => dgst_a.update(&[0u8]),
+            1 => dgst_a.update([0u8]),
             _ => unreachable!(),
         }
         plen >>= 1;
@@ -94,7 +94,7 @@ fn do_md5_crypt(pass: &[u8], salt: &str) -> Result<String> {
         if r % 2 == 1 {
             dgst_a.update(pass);
         } else {
-            dgst_a.update(&hash_a);
+            dgst_a.update(hash_a);
         }
         if r % 3 > 0 {
             dgst_a.update(salt.as_bytes());
@@ -105,7 +105,7 @@ fn do_md5_crypt(pass: &[u8], salt: &str) -> Result<String> {
         if r % 2 == 0 {
             dgst_a.update(pass);
         } else {
-            dgst_a.update(&hash_a);
+            dgst_a.update(hash_a);
         }
         hash_a = dgst_a.finalize();
     }
