@@ -82,6 +82,7 @@
 
 #![warn(missing_docs)]
 
+pub mod apr1_crypt;
 pub mod bcrypt;
 pub mod bsdi_crypt;
 mod des_crypt;

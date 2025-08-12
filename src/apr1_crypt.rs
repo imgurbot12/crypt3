@@ -15,12 +15,12 @@
 //! # Example
 //!
 //! ```
-//! use pwhash::md5_crypt;
+//! use pwhash::apr1_crypt;
 //!
-//! assert_eq!(md5_crypt::hash_with(
-//!     "$1$5pZSV9va$azfrPr6af3Fc7dLblQXVa0",
+//! assert_eq!(apr1_crypt::hash_with(
+//!     "$apr1$63JlJ2NH$smE0mnB5h3tDri0zkpWXt1",
 //!     "password").unwrap(),
-//!     "$1$5pZSV9va$azfrPr6af3Fc7dLblQXVa0");
+//!     "$apr1$63JlJ2NH$smE0mnB5h3tDri0zkpWXt1");
 //! ```
 //!
 //! # Parameters
@@ -41,84 +41,14 @@
 //! * *`{checksum}`* is a 22-character Base64 encoding of the checksum.
 
 use super::{consteq, HashSetup, IntoHashSetup, Result};
-use crate::enc_dec::{bcrypt_hash64_decode, md5_sha2_hash64_encode};
 use crate::error::Error;
+use crate::md5_crypt::do_md5_crypt;
 use crate::parse::{self, HashIterator};
 use crate::random;
-use md5::{Digest, Md5};
-use std::cmp::min;
 
 /// Maximium salt length.
 pub const MAX_SALT_LEN: usize = 8;
-const MD5_MAGIC: &str = "$1$";
-const MD5_TRANSPOSE: &[u8] = b"\x0c\x06\x00\x0d\x07\x01\x0e\x08\x02\x0f\x09\x03\x05\x0a\x04\x0b";
-
-pub(crate) fn do_md5_crypt(pass: &[u8], salt: &str, magic: &str) -> Result<String> {
-    let mut dummy_buf = [0u8; 6];
-    bcrypt_hash64_decode(salt, &mut dummy_buf)?;
-
-    let mut dgst_b = Md5::new();
-    dgst_b.update(pass);
-    dgst_b.update(salt.as_bytes());
-    dgst_b.update(pass);
-    let mut hash_b = dgst_b.finalize();
-
-    let mut dgst_a = Md5::new();
-    dgst_a.update(pass);
-    dgst_a.update(magic.as_bytes());
-    dgst_a.update(salt.as_bytes());
-
-    let mut plen = pass.len();
-    while plen > 0 {
-        dgst_a.update(&hash_b[..min(plen, 16)]);
-        if plen < 16 {
-            break;
-        }
-        plen -= 16;
-    }
-
-    plen = pass.len();
-    while plen > 0 {
-        match plen & 1 {
-            0 => dgst_a.update(&pass[..1]),
-            1 => dgst_a.update([0u8]),
-            _ => unreachable!(),
-        }
-        plen >>= 1;
-    }
-
-    let mut hash_a = dgst_a.finalize();
-
-    for r in 0..1000 {
-        let mut dgst_a = Md5::new();
-        if r % 2 == 1 {
-            dgst_a.update(pass);
-        } else {
-            dgst_a.update(hash_a);
-        }
-        if r % 3 > 0 {
-            dgst_a.update(salt.as_bytes());
-        }
-        if r % 7 > 0 {
-            dgst_a.update(pass);
-        }
-        if r % 2 == 0 {
-            dgst_a.update(pass);
-        } else {
-            dgst_a.update(hash_a);
-        }
-        hash_a = dgst_a.finalize();
-    }
-
-    for (i, &ti) in MD5_TRANSPOSE.iter().enumerate() {
-        hash_b[i] = hash_a[ti as usize];
-    }
-    Ok(format!(
-        "{magic}{}${}",
-        salt,
-        md5_sha2_hash64_encode(&hash_b)
-    ))
-}
+const APR1_MAGIC: &str = "$apr1$";
 
 /// Hash a password with a randomly generated salt.
 ///
@@ -127,14 +57,14 @@ pub(crate) fn do_md5_crypt(pass: &[u8], salt: &str, magic: &str) -> Result<Strin
 #[deprecated(since = "0.2.0", note = "don't use this algorithm for new passwords")]
 pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
     let saltstr = random::gen_salt_str(MAX_SALT_LEN);
-    do_md5_crypt(pass.as_ref(), &saltstr, MD5_MAGIC)
+    do_md5_crypt(pass.as_ref(), &saltstr, APR1_MAGIC)
 }
 
-const MAGIC_LEN: usize = 3;
+const MAGIC_LEN: usize = 6;
 
 fn parse_md5_hash(hash: &str) -> Result<HashSetup> {
     let mut hs = parse::HashSlice::new(hash);
-    if hs.take(MAGIC_LEN).unwrap_or("X") != MD5_MAGIC {
+    if hs.take(MAGIC_LEN).unwrap_or("X") != APR1_MAGIC {
         return Err(Error::InvalidHashString);
     }
     let salt = if let Some(salt) = hs.take_until(b'$') {
@@ -169,10 +99,10 @@ where
         } else {
             return Err(Error::InvalidHashString);
         };
-        do_md5_crypt(pass.as_ref(), salt, MD5_MAGIC)
+        do_md5_crypt(pass.as_ref(), salt, APR1_MAGIC)
     } else {
         let salt = random::gen_salt_str(MAX_SALT_LEN);
-        do_md5_crypt(pass.as_ref(), &salt, MD5_MAGIC)
+        do_md5_crypt(pass.as_ref(), &salt, APR1_MAGIC)
     }
 }
 
@@ -190,19 +120,19 @@ mod tests {
     #[allow(deprecated)]
     fn custom() {
         assert_eq!(
-            super::hash_with("$1$5pZSV9va$azfrPr6af3Fc7dLblQXVa0", "password").unwrap(),
-            "$1$5pZSV9va$azfrPr6af3Fc7dLblQXVa0"
+            super::hash_with("$apr1$63JlJ2NH$smE0mnB5h3tDri0zkpWXt1", "password").unwrap(),
+            "$apr1$63JlJ2NH$smE0mnB5h3tDri0zkpWXt1"
         );
         assert_eq!(
             super::hash_with(
                 HashSetup {
-                    salt: Some("5pZSV9va"),
+                    salt: Some("63JlJ2NH"),
                     rounds: None
                 },
                 "password"
             )
             .unwrap(),
-            "$1$5pZSV9va$azfrPr6af3Fc7dLblQXVa0"
+            "$apr1$63JlJ2NH$smE0mnB5h3tDri0zkpWXt1"
         );
     }
 }
