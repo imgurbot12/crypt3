@@ -37,10 +37,19 @@
 //!
 //! * *`{checksum}`* is a 11-character Base64 encoding of the checksum.
 
-use crate::{consteq, error::Result, internal::des::unix_crypt, random};
+use crate::{
+    consteq,
+    error::Result,
+    hash::{Hash, HashV},
+    internal::des::unix_crypt,
+    random,
+};
 
 /// Salt length.
 pub const SALT_LEN: usize = 2;
+
+// salt + checksum
+pub(crate) const HASH_LENGTH: usize = 2 + 11;
 
 /// Hash a password with a randomly generated salt.
 ///
@@ -48,9 +57,9 @@ pub const SALT_LEN: usize = 2;
 /// be opened.
 #[deprecated(since = "0.2.0", note = "don't use this algorithm for new passwords")]
 #[inline]
-pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
+pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<Hash> {
     let saltstr = random::gen_salt_str(SALT_LEN);
-    unix_crypt(pass.as_ref(), &saltstr)
+    Ok(Hash::Unix(HashV(unix_crypt(pass.as_ref(), &saltstr)?)))
 }
 
 /// Hash a password with a user-provided salt.
@@ -59,14 +68,17 @@ pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
 /// character.
 #[deprecated(since = "0.2.0", note = "don't use this algorithm for new passwords")]
 #[inline]
-pub fn hash_with<B: AsRef<[u8]>>(salt: &str, pass: B) -> Result<String> {
-    unix_crypt(pass.as_ref(), salt)
+pub fn hash_with<B: AsRef<[u8]>>(salt: &str, pass: B) -> Result<Hash> {
+    Ok(Hash::Unix(HashV(unix_crypt(pass.as_ref(), salt)?)))
 }
 
 /// Verify that the hash corresponds to a password.
 #[inline]
 pub fn verify<B: AsRef<[u8]>>(pass: B, hash: &str) -> bool {
-    consteq(hash, unix_crypt(pass.as_ref(), hash))
+    consteq(
+        hash,
+        unix_crypt(pass.as_ref(), hash).map(|s| Hash::Unix(HashV(s))),
+    )
 }
 
 #[cfg(test)]

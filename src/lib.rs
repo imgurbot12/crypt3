@@ -3,6 +3,7 @@
 #![warn(missing_docs)]
 
 mod encode;
+mod hash;
 mod internal;
 mod parse;
 mod random;
@@ -11,7 +12,16 @@ mod traits;
 pub mod crypt;
 pub mod error;
 
+pub use hash::Hash;
 pub use traits::{FindNul, IntoHashSetup};
+
+#[inline]
+pub(crate) fn consteq(hash: &str, calchash: error::Result<Hash>) -> bool {
+    calchash
+        .ok()
+        .map(|hstr| hash == hstr.as_str())
+        .unwrap_or_default()
+}
 
 /// Setup struct for basic hashing customization.
 ///
@@ -39,9 +49,4 @@ impl<'a> HashSetup<'a> {
         self.rounds = Some(rounds);
         self
     }
-}
-
-#[inline]
-pub(crate) fn consteq(hash: &str, calchash: error::Result<String>) -> bool {
-    calchash.ok().map(|hstr| hash == hstr).unwrap_or_default()
 }

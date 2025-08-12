@@ -46,6 +46,7 @@ use crate::{
     HashSetup, IntoHashSetup, consteq,
     encode::decode_val,
     error::{Error, Result},
+    hash::{Hash, HashV},
     internal::des::bsdi_crypt,
     parse::{self, HashIterator},
     random,
@@ -53,6 +54,10 @@ use crate::{
 
 const MIN_ROUNDS: u32 = 1;
 const MAX_ROUNDS: u32 = (1 << 24) - 1;
+
+// `_` + rounds + salt + checksum
+pub(crate) const HASH_LENGTH: usize = 1 + 4 + 4 + 11;
+
 /// Default number of rounds.
 ///
 /// The value is aligned with the default used on NetBSD.
@@ -68,9 +73,10 @@ const ROUNDS_LEN: usize = 4;
 /// be opened.
 #[deprecated(since = "0.2.0", note = "don't use this algorithm for new passwords")]
 #[inline]
-pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
+pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<Hash> {
     let saltstr = random::gen_salt_str(SALT_LEN);
-    bsdi_crypt(pass.as_ref(), &saltstr, DEFAULT_ROUNDS)
+    let hash = bsdi_crypt(pass.as_ref(), &saltstr, DEFAULT_ROUNDS)?;
+    Ok(Hash::Bsdi(HashV(hash)))
 }
 
 fn parse_bsdi_hash(hash: &str) -> Result<HashSetup> {
@@ -98,7 +104,7 @@ fn parse_bsdi_hash(hash: &str) -> Result<HashSetup> {
 /// An error is returned if the salt is too short or contains an invalid
 /// character. An out-of-range rounds value will also result in an error.
 #[deprecated(since = "0.2.0", note = "don't use this algorithm for new passwords")]
-pub fn hash_with<'a, IHS, B>(param: IHS, pass: B) -> Result<String>
+pub fn hash_with<'a, IHS, B>(param: IHS, pass: B) -> Result<Hash>
 where
     IHS: IntoHashSetup<'a>,
     B: AsRef<[u8]>,
@@ -112,13 +118,15 @@ where
     } else {
         DEFAULT_ROUNDS
     };
-    match hs.salt {
+
+    let hash = match hs.salt {
         Some(salt) => bsdi_crypt(pass.as_ref(), salt, rounds),
         None => {
             let saltstr = random::gen_salt_str(SALT_LEN);
             bsdi_crypt(pass.as_ref(), &saltstr, rounds)
         }
-    }
+    }?;
+    Ok(Hash::Bsdi(HashV(hash)))
 }
 
 /// Verify that the hash corresponds to a password.

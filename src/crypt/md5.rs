@@ -41,7 +41,7 @@
 //!
 //! * *`{checksum}`* is a 22-character Base64 encoding of the checksum.
 
-use std::cmp::min;
+use std::{cmp::min, ops::RangeInclusive};
 
 use md5::{Digest, Md5};
 
@@ -49,9 +49,15 @@ use crate::{
     HashSetup, IntoHashSetup, consteq,
     encode::{bcrypt_hash64_decode, md5_sha2_hash64_encode},
     error::{Error, Result},
+    hash::{Hash, HashV},
     parse::{self, HashIterator},
     random,
 };
+
+// magic + (0..8 salt) + '$' + checksum
+pub(crate) const HASH_LENGTH_MIN: usize = MAGIC_LEN + 0 + 1 + 22;
+pub(crate) const HASH_LENGTH_MAX: usize = MAGIC_LEN + 8 + 1 + 22;
+pub(crate) const HASH_LENGTH: RangeInclusive<usize> = HASH_LENGTH_MIN..=HASH_LENGTH_MAX;
 
 /// Maximium salt length.
 pub const MAX_SALT_LEN: usize = 8;
@@ -126,9 +132,10 @@ pub(crate) fn do_md5_crypt(pass: &[u8], salt: &str, magic: &str) -> Result<Strin
 /// be opened.
 #[deprecated(since = "0.2.0", note = "don't use this algorithm for new passwords")]
 #[inline]
-pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
+pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<Hash> {
     let saltstr = random::gen_salt_str(MAX_SALT_LEN);
-    do_md5_crypt(pass.as_ref(), &saltstr, MD5_MAGIC)
+    let hash = do_md5_crypt(pass.as_ref(), &saltstr, MD5_MAGIC)?;
+    Ok(Hash::Md5(HashV(hash)))
 }
 
 const MAGIC_LEN: usize = 3;
@@ -153,7 +160,7 @@ fn parse_md5_hash(hash: &str) -> Result<HashSetup> {
 /// If the salt is too long, it is truncated to maximum length. If it contains
 /// an invalid character, an error is returned.
 #[deprecated(since = "0.2.0", note = "don't use this algorithm for new passwords")]
-pub fn hash_with<'a, IHS, B>(param: IHS, pass: B) -> Result<String>
+pub fn hash_with<'a, IHS, B>(param: IHS, pass: B) -> Result<Hash>
 where
     IHS: IntoHashSetup<'a>,
     B: AsRef<[u8]>,
@@ -166,7 +173,8 @@ where
             .or_else(|| parse::HashSlice::new(salt).take(MAX_SALT_LEN))
             .ok_or(Error::InvalidHashString)?,
     };
-    do_md5_crypt(pass.as_ref(), salt, MD5_MAGIC)
+    let hash = do_md5_crypt(pass.as_ref(), salt, MD5_MAGIC)?;
+    Ok(Hash::Md5(HashV(hash)))
 }
 
 /// Verify that the hash corresponds to a password.

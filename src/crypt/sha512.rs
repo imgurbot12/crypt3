@@ -48,9 +48,17 @@
 //! The format __`$6$`__*`{salt}`*__$__*`{checksum}`* can be used if
 //! the default number of rounds is chosen.
 
+use std::ops::RangeInclusive;
+
 use sha2::Sha512;
 
-use crate::{HashSetup, IntoHashSetup, consteq, error::Result, internal::sha2 as sha2i, random};
+use crate::{
+    HashSetup, IntoHashSetup, consteq,
+    error::Result,
+    hash::{Hash, HashV},
+    internal::sha2 as sha2i,
+    random,
+};
 
 pub use sha2i::DEFAULT_ROUNDS;
 pub use sha2i::MAX_ROUNDS;
@@ -62,6 +70,11 @@ const SHA512_TRANSPOSE: &[u8] = b"\x2a\x15\x00\x01\x2b\x16\x17\x02\x2c\x2d\x18\x
 				  \x05\x2f\x30\x1b\x06\x07\x31\x1c\x1d\x08\x32\x33\x1e\x09\x0a\x34\
 				  \x1f\x20\x0b\x35\x36\x21\x0c\x0d\x37\x22\x23\x0e\x38\x39\x24\x0f\
 				  \x10\x3a\x25\x26\x11\x3b\x3c\x27\x12\x13\x3d\x28\x29\x14\x3e\x3f";
+
+// magic + `rounds=` + (1000..999999999 rounds) + `$` + (1..64 salt) + `$` + checksum
+pub(crate) const HASH_LENGTH_MIN: usize = SHA512_MAGIC.len() + 7 + 4 + 1 + 1 + 1 + 86;
+pub(crate) const HASH_LENGTH_MAX: usize = SHA512_MAGIC.len() + 7 + 9 + 1 + 64 + 1 + 86;
+pub(crate) const HASH_LENGTH: RangeInclusive<usize> = HASH_LENGTH_MIN..=HASH_LENGTH_MAX;
 
 #[inline]
 fn do_sha512_crypt(pass: &[u8], salt: &str, rounds: Option<u32>) -> Result<String> {
@@ -81,9 +94,10 @@ fn do_sha512_crypt(pass: &[u8], salt: &str, rounds: Option<u32>) -> Result<Strin
 /// An error is returned if the system random number generator cannot
 /// be opened.
 #[inline]
-pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
+pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<Hash> {
     let saltstr = random::gen_salt_str(MAX_SALT_LEN);
-    do_sha512_crypt(pass.as_ref(), &saltstr, None)
+    let hash = do_sha512_crypt(pass.as_ref(), &saltstr, None)?;
+    Ok(Hash::Sha512(HashV(hash)))
 }
 
 #[inline]
@@ -99,16 +113,16 @@ fn parse_sha512_hash(hash: &str) -> Result<HashSetup> {
 /// an invalid character, an error is returned. An out-of-range rounds value
 /// will be coerced into the allowed range.
 #[inline]
-pub fn hash_with<'a, IHS, B>(param: IHS, pass: B) -> Result<String>
+pub fn hash_with<'a, IHS, B>(param: IHS, pass: B) -> Result<Hash>
 where
     IHS: IntoHashSetup<'a>,
     B: AsRef<[u8]>,
 {
-    sha2i::sha2_hash_with(
+    Ok(Hash::Sha512(HashV(sha2i::sha2_hash_with(
         IHS::into_hash_setup(param, parse_sha512_hash)?,
         pass.as_ref(),
         do_sha512_crypt,
-    )
+    )?)))
 }
 
 /// Verify that the hash corresponds to a password.

@@ -74,6 +74,7 @@ use crate::{
     HashSetup, consteq,
     encode::{bcrypt_hash64_decode, bcrypt_hash64_encode},
     error::{Error, Result},
+    hash::{Hash, HashV},
     parse::{self, HashIterator},
     random,
 };
@@ -82,6 +83,9 @@ const MAX_PASS_LEN: usize = 72;
 const DEFAULT_VARIANT: BcryptVariant = BcryptVariant::V2b;
 const ENC_SALT_LEN: usize = 22;
 const MAGIC_LEN: usize = 4;
+
+// magic + cost + salt + `$` + checksum
+pub(crate) const HASH_LENGTH: usize = MAGIC_LEN + 2 + 22 + 1 + 31;
 
 /// Minimum cost.
 pub const MIN_COST: u32 = 4;
@@ -289,10 +293,12 @@ fn do_bcrypt(pass: &[u8], salt: &[u8], cost: u32, variant: BcryptVariant) -> Res
 /// An error is returned if the system random number generator cannot
 /// be opened.
 #[inline]
-pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
+pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<Hash> {
     let mut salt_buf = [0u8; 16];
     random::gen_salt_bytes(&mut salt_buf);
-    do_bcrypt(pass.as_ref(), &salt_buf, DEFAULT_COST, DEFAULT_VARIANT)
+
+    let hash = do_bcrypt(pass.as_ref(), &salt_buf, DEFAULT_COST, DEFAULT_VARIANT)?;
+    Ok(Hash::Bcrypt(HashV(hash)))
 }
 
 /// Hash a password with user-provided parameters.
@@ -302,7 +308,7 @@ pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
 /// will set the variant to default. The `Default` trait is implemented for
 /// `BcryptSetup`, which makes it easier to initialize just the desired
 /// fields (see the module-level example.)
-pub fn hash_with<'a, IBS, B>(param: IBS, pass: B) -> Result<String>
+pub fn hash_with<'a, IBS, B>(param: IBS, pass: B) -> Result<Hash>
 where
     IBS: IntoBcryptSetup<'a>,
     B: AsRef<[u8]>,
@@ -323,7 +329,9 @@ where
         Some(salt) => bcrypt_hash64_decode(salt, &mut salt_buf)?,
         None => random::gen_salt_bytes(&mut salt_buf),
     }
-    do_bcrypt(pass.as_ref(), &salt_buf, cost, variant)
+
+    let hash = do_bcrypt(pass.as_ref(), &salt_buf, cost, variant)?;
+    Ok(Hash::Bcrypt(HashV(hash)))
 }
 
 /// Verify that the hash corresponds to a password.

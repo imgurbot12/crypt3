@@ -47,9 +47,17 @@
 //! The format __`$5$`__*`{salt}`*__$__*`{checksum}`* can be used if
 //! the default number of rounds is chosen.
 
+use std::ops::RangeInclusive;
+
 use sha2::Sha256;
 
-use crate::{HashSetup, IntoHashSetup, consteq, error::Result, internal::sha2 as sha2i, random};
+use crate::{
+    HashSetup, IntoHashSetup, consteq,
+    error::Result,
+    hash::{Hash, HashV},
+    internal::sha2 as sha2i,
+    random,
+};
 
 pub use sha2i::DEFAULT_ROUNDS;
 pub use sha2i::MAX_ROUNDS;
@@ -59,6 +67,11 @@ pub use sha2i::MIN_ROUNDS;
 const SHA256_MAGIC: &str = "$5$";
 const SHA256_TRANSPOSE: &[u8] = b"\x14\x0a\x00\x0b\x01\x15\x02\x16\x0c\x17\x0d\x03\x0e\x04\x18\x05\
 					  \x19\x0f\x1a\x10\x06\x11\x07\x1b\x08\x1c\x12\x1d\x13\x09\x1e\x1f";
+
+// magic + `rounds=` + (1000..999999999 rounds) + `$` + (1..64 salt) + `$` + checksum
+pub(crate) const HASH_LENGTH_MIN: usize = SHA256_MAGIC.len() + 7 + 4 + 1 + 1 + 1 + 43;
+pub(crate) const HASH_LENGTH_MAX: usize = SHA256_MAGIC.len() + 7 + 9 + 1 + 64 + 1 + 43;
+pub(crate) const HASH_LENGTH: RangeInclusive<usize> = HASH_LENGTH_MIN..=HASH_LENGTH_MAX;
 
 #[inline]
 fn do_sha256_crypt(pass: &[u8], salt: &str, rounds: Option<u32>) -> Result<String> {
@@ -78,9 +91,10 @@ fn do_sha256_crypt(pass: &[u8], salt: &str, rounds: Option<u32>) -> Result<Strin
 /// An error is returned if the system random number generator cannot
 /// be opened.
 #[deprecated(since = "0.2.0", note = "don't use this algorithm for new passwords")]
-pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
+pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<Hash> {
     let saltstr = random::gen_salt_str(MAX_SALT_LEN);
-    do_sha256_crypt(pass.as_ref(), &saltstr, None)
+    let hash = do_sha256_crypt(pass.as_ref(), &saltstr, None)?;
+    Ok(Hash::Sha256(HashV(hash)))
 }
 
 #[inline]
@@ -97,16 +111,16 @@ fn parse_sha256_hash(hash: &str) -> Result<HashSetup> {
 /// will be coerced into the allowed range.
 #[deprecated(since = "0.2.0", note = "don't use this algorithm for new passwords")]
 #[inline]
-pub fn hash_with<'a, IHS, B>(param: IHS, pass: B) -> Result<String>
+pub fn hash_with<'a, IHS, B>(param: IHS, pass: B) -> Result<Hash>
 where
     IHS: IntoHashSetup<'a>,
     B: AsRef<[u8]>,
 {
-    sha2i::sha2_hash_with(
+    Ok(Hash::Sha256(HashV(sha2i::sha2_hash_with(
         IHS::into_hash_setup(param, parse_sha256_hash)?,
         pass.as_ref(),
         do_sha256_crypt,
-    )
+    )?)))
 }
 
 /// Verify that the hash corresponds to a password.
