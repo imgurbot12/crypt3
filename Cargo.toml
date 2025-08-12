@@ -1,22 +1,34 @@
 [package]
-name = "pwhash"
-version = "1.0.0"
-authors = ["Ivan Nejgebauer <inejge@gmail.com>"]
-description = "A collection of password hashing routines in pure Rust."
-documentation = "https://inejge.github.io/pwhash"
-homepage = "https://github.com/inejge/pwhash"
-repository = "https://github.com/inejge/pwhash"
+name = "crypt3"
+version = "0.1.0"
+
 readme = "README.md"
 license = "MIT"
 keywords = ["password", "hash", "hashing", "crypt"]
 categories = ["cryptography", "authentication"]
-edition = "2021"
+edition = "2024"
+
+[features]
+default = ["apr1", "bcrypt", "md5", "sha1", "sha2", "unix"]
+apr1    = ["md5", "dep:md-5"]
+bcrypt  = ["dep:blowfish", "dep:byteorder"]
+md5     = ["dep:md-5"]
+sha1    = ["dep:hmac", "dep:sha1"]
+sha2    = ["dep:sha2"]
+unix    = []
 
 [dependencies]
-md-5 = "0.10.6"
-sha1 = "0.10.6"
-sha2 = "0.10.9"
-blowfish = { version = "0.9.1", features = ["bcrypt"] }
-hmac = "0.12.1"
-byteorder = "1.5.0"
+md-5 = { version = "0.10.6", optional = true }
+sha1 = { version = "0.10.6", optional = true }
+sha2 = { version = "0.10.9", optional = true }
+blowfish = { version = "0.9.1", features = ["bcrypt"], optional = true }
+hmac = { version = "0.12.1", optional = true }
+byteorder = { version = "1.5.0", optional = true }
 rand = "0.9.2"
+
+[dev-dependencies]
+criterion = "0.7.0"
+
+[[bench]]
+name = "apr1"
+harness = false

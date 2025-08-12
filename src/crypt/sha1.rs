@@ -16,11 +16,12 @@
 //! # Example
 //!
 //! ```
-//! use pwhash::sha1_crypt;
+//! use crypt3::crypt::sha1;
 //!
-//! assert_eq!(sha1_crypt::hash_with(
-//!     "$sha1$19703$iVdJqfSE$v4qYKl1zqYThwpjJAoKX6UvlHq/a",
-//!     "password").unwrap(),
+//! assert_eq!(
+//!     sha1::hash_with(
+//!         "$sha1$19703$iVdJqfSE$v4qYKl1zqYThwpjJAoKX6UvlHq/a",
+//!         "password").unwrap(),
 //!     "$sha1$19703$iVdJqfSE$v4qYKl1zqYThwpjJAoKX6UvlHq/a");
 //! ```
 //!
@@ -45,13 +46,16 @@
 //!
 //! * *`{checksum}`* is a 28-character Base64 encoding of the checksum.
 
-use super::{consteq, HashSetup, IntoHashSetup, Result};
-use crate::enc_dec::{bcrypt_hash64_decode, sha1crypt_hash64_encode};
-use crate::error::Error;
-use crate::parse::{self, HashIterator};
-use crate::random;
 use hmac::{Hmac, Mac};
 use sha1::Sha1;
+
+use crate::{
+    HashSetup, IntoHashSetup, consteq,
+    encode::{bcrypt_hash64_decode, sha1crypt_hash64_encode},
+    error::{Error, Result},
+    parse::{self, HashIterator},
+    random,
+};
 
 const MIN_ROUNDS: u32 = 1;
 const MAX_SALT_LEN: usize = 64;

@@ -1,4 +1,4 @@
-//! Error values.
+//! Supported errors and result types.
 //
 // Copyright (c) 2016 Ivan Nejgebauer <inejge@gmail.com>
 //
@@ -11,6 +11,9 @@
 //! errors except I/O errors when opening the system entropy source.
 use std::error::Error as StdError;
 use std::fmt;
+
+/// Type alias for the Result type.
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// Possible errors.
 #[derive(Debug)]

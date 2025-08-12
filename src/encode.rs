@@ -6,11 +6,10 @@
 // http://opensource.org/licenses/MIT>. This file may not be copied,
 // modified, or distributed except according to the terms of this
 // license.
-
-use super::Result;
-use crate::error::Error;
 use std::char;
 use std::str::from_utf8;
+
+use crate::error::{Error, Result};
 
 const CRYPT_HASH64: &[u8] = b"./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 

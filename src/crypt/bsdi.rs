@@ -15,10 +15,11 @@
 //! # Example
 //!
 //! ```
-//! use pwhash::{bsdi_crypt, HashSetup};
+//! use crypt3::{crypt::bsdi, HashSetup};
 //!
-//! assert_eq!(bsdi_crypt::hash_with(
-//!         HashSetup { salt: Some("K0Ay"), rounds: Some(7250) },
+//! assert_eq!(
+//!     bsdi::hash_with(
+//!         HashSetup::default().salt("K0Ay").rounds(7250),
 //!         "password").unwrap(),
 //!     "_Gl/.K0Ay.aosctsbJ1k");
 //! ```
@@ -41,12 +42,14 @@
 //!
 //! * *`{checksum}`* is a 11-character Base64 encoding of the checksum.
 
-use super::{consteq, HashSetup, IntoHashSetup, Result};
-use crate::des_crypt::bsdi_crypt;
-use crate::enc_dec::decode_val;
-use crate::error::Error;
-use crate::parse::{self, HashIterator};
-use crate::random;
+use crate::{
+    HashSetup, IntoHashSetup, consteq,
+    encode::decode_val,
+    error::{Error, Result},
+    internal::des::bsdi_crypt,
+    parse::{self, HashIterator},
+    random,
+};
 
 const MIN_ROUNDS: u32 = 1;
 const MAX_ROUNDS: u32 = (1 << 24) - 1;

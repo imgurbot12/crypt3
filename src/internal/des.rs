@@ -1968,8 +1968,11 @@ pub fn des_cipher(input: u64, keyword: u64, salt: u32, mut num_iter: u32) -> u64
     perm6464(L, &CF6464)
 }
 
-use crate::enc_dec::{crypt_hash64_encode, decode_val, encode_val};
-use std::iter;
+use crate::crypt::{bsdi, unix};
+use crate::encode::{crypt_hash64_encode, decode_val, encode_val};
+use crate::error::Result;
+
+use std::{cmp::min, iter};
 
 #[inline]
 fn secret_to_key(key: &[u8]) -> u64 {
@@ -1989,23 +1992,17 @@ fn do_0_crypt(keyword: u64, salt: u32, rounds: u32) -> String {
     crypt_hash64_encode(&result_array)
 }
 
-use super::unix_crypt;
-use super::Result;
-
 const DES_ROUNDS: u32 = 25;
 
 pub fn unix_crypt(key: &[u8], salt: &str) -> Result<String> {
     let keyword = secret_to_key(key);
-    let salt_val = decode_val(salt, unix_crypt::SALT_LEN)?;
+    let salt_val = decode_val(salt, unix::SALT_LEN)?;
     Ok(format!(
         "{}{}",
-        encode_val(salt_val, unix_crypt::SALT_LEN),
+        encode_val(salt_val, unix::SALT_LEN),
         do_0_crypt(keyword, salt_val, DES_ROUNDS)
     ))
 }
-
-use super::bsdi_crypt;
-use std::cmp::min;
 
 pub fn bsdi_crypt(key: &[u8], salt: &str, rounds: u32) -> Result<String> {
     let keylen = key.len();
@@ -2016,11 +2013,11 @@ pub fn bsdi_crypt(key: &[u8], salt: &str, rounds: u32) -> Result<String> {
         keyword = des_cipher(keyword, keyword, 0, 1) ^ next_keyword;
         idx += 8;
     }
-    let salt_val = decode_val(salt, bsdi_crypt::SALT_LEN)?;
+    let salt_val = decode_val(salt, bsdi::SALT_LEN)?;
     Ok(format!(
         "_{}{}{}",
-        encode_val(rounds, bsdi_crypt::SALT_LEN),
-        encode_val(salt_val, bsdi_crypt::SALT_LEN),
+        encode_val(rounds, bsdi::SALT_LEN),
+        encode_val(salt_val, bsdi::SALT_LEN),
         do_0_crypt(keyword, salt_val, rounds)
     ))
 }

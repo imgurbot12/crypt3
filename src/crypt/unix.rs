@@ -13,12 +13,10 @@
 //! # Example
 //!
 //! ```
-//! use pwhash::unix_crypt;
+//! use crypt3::crypt::unix;
 //!
-//! assert_eq!(unix_crypt::hash_with("xO",
-//!     "password").unwrap(), "xOAFZqRz5RduI");
-//! assert_eq!(unix_crypt::verify("password","xOAFZqRz5RduI"),
-//!     true);
+//! assert_eq!(unix::hash_with("xO", "password").unwrap(), "xOAFZqRz5RduI");
+//! assert_eq!(unix::verify("password","xOAFZqRz5RduI"), true);
 //!
 //! ```
 //!
@@ -39,9 +37,7 @@
 //!
 //! * *`{checksum}`* is a 11-character Base64 encoding of the checksum.
 
-use super::{consteq, Result};
-use crate::des_crypt::unix_crypt;
-use crate::random;
+use crate::{consteq, error::Result, internal::des::unix_crypt, random};
 
 /// Salt length.
 pub const SALT_LEN: usize = 2;

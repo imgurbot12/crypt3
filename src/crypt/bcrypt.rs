@@ -18,7 +18,7 @@
 //! and default output variant (__2b__):
 //!
 //! ```
-//! use pwhash::bcrypt;
+//! use crypt3::crypt::bcrypt;
 //!
 //! let hash = bcrypt::hash("password").unwrap();
 //! ```
@@ -27,12 +27,12 @@
 //! pick the salt and use the default cost:
 //!
 //! ```
-//! use pwhash::bcrypt::{self, BcryptSetup, BcryptVariant};
+//! use crypt3::crypt::bcrypt::{self, BcryptSetup, BcryptVariant};
 //!
-//! let hash = bcrypt::hash_with(BcryptSetup {
-//!                variant: Some(BcryptVariant::V2y),
-//!                ..Default::default() },
-//!            "password").unwrap();
+//! let hash = bcrypt::hash_with(
+//!     BcryptSetup::default().variant(BcryptVariant::V2y),
+//!     "password",
+//! ).unwrap();
 //! ```
 //!
 //! # Parameters
@@ -63,16 +63,20 @@
 //!
 //! * _`{checksum}`_ is a 31-character Base64 encoding of the computed hash.
 
-use super::{consteq, HashSetup, Result};
-use crate::enc_dec::{bcrypt_hash64_decode, bcrypt_hash64_encode};
-use crate::error::Error;
-use crate::parse::{self, HashIterator};
-use crate::random;
-use blowfish::Blowfish;
-use byteorder::{ByteOrder, BE};
 use std::cmp::min;
 use std::default::Default;
 use std::{fmt, iter};
+
+use blowfish::Blowfish;
+use byteorder::{BE, ByteOrder};
+
+use crate::{
+    HashSetup, consteq,
+    encode::{bcrypt_hash64_decode, bcrypt_hash64_encode},
+    error::{Error, Result},
+    parse::{self, HashIterator},
+    random,
+};
 
 const MAX_PASS_LEN: usize = 72;
 const DEFAULT_VARIANT: BcryptVariant = BcryptVariant::V2b;
@@ -152,6 +156,24 @@ pub struct BcryptSetup<'a> {
     pub cost: Option<u32>,
     /// Algorithm variant.
     pub variant: Option<BcryptVariant>,
+}
+
+impl<'a> BcryptSetup<'a> {
+    /// Configure custom salt to use for bcrypt hash
+    pub fn salt(mut self, salt: &'a str) -> Self {
+        self.salt = Some(salt);
+        self
+    }
+    /// Configure custom cost for bcrypt hash
+    pub fn cost(mut self, cost: u32) -> Self {
+        self.cost = Some(cost);
+        self
+    }
+    /// Configure algorithm variant for bcrypt hash
+    pub fn variant(mut self, variant: BcryptVariant) -> Self {
+        self.variant = Some(variant);
+        self
+    }
 }
 
 /// A trait for converting a type into a `BcryptSetup` struct.

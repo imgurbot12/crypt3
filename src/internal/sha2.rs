@@ -7,20 +7,25 @@
 // modified, or distributed except according to the terms of this
 // license.
 
-use super::{HashSetup, Result};
-use crate::enc_dec::{bcrypt_hash64_decode, md5_sha2_hash64_encode};
-use crate::error::Error;
+use std::cmp::min;
+
+use sha2::Digest;
+
+use crate::encode::{bcrypt_hash64_decode, md5_sha2_hash64_encode};
+use crate::error::{Error, Result};
 use crate::parse::{self, HashIterator};
 use crate::random;
-use sha2::Digest;
-use std::cmp::min;
+use crate::HashSetup;
 
 /// Minimum rounds.
 pub const MIN_ROUNDS: u32 = 1000;
+
 /// Maximum rounds.
 pub const MAX_ROUNDS: u32 = 999999999;
+
 /// Default number of rounds.
 pub const DEFAULT_ROUNDS: u32 = 5000;
+
 /// Maximum (and default) salt length.
 pub const MAX_SALT_LEN: usize = 16;
 
