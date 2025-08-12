@@ -1,6 +1,6 @@
 # crypt3_rs
 
-A collection of password hashing and verification routines.
+Unix crypt(3) reimplemented in pure rust.
 
 See the [documentation](https://docs.rs/crypt3_rs/0.1.0/crypt3_rs/) for API reference.
 

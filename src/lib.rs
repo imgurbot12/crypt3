@@ -1,4 +1,4 @@
-//! A collection of password hashing and verification routines.
+//! Unix crypt(3) reimplemented in pure rust.
 //!
 //! # Examples
 //!
@@ -32,11 +32,12 @@
 //!
 //! Currently, there are implementations of seven algorithms, which should
 //! cover anything one might find as a system-wide hash on a free Unix-like
-//! OS: [bcrypt](crypt::bcrypt), [SHA-512](crypt::sha512), [SHA-256](crypt::sha256),
-//! [HMAC-SHA1](crypt::sha1), [MD5](crypt::md5), [BSDi crypt](crypt::bsdi), and
-//! [DES crypt](crypt::unix). The list is ordered roughly by security, with the
-//! most secure algorithms first. The first two are recommended for new
-//! passwords.
+//! OS: [APR1-MD5](crypt::apr1), [bcrypt](crypt::bcrypt), [SHA-512](crypt::sha512),
+//! [SHA-256](crypt::sha256), [HMAC-SHA1](crypt::sha1), [MD5](crypt::md5),
+//! [BSDi crypt](crypt::bsdi), and [DES crypt](crypt::unix). The list is ordered
+//! roughly by security, with the most secure algorithms first. Of the available
+//! options, [bcrypt](crypt::bcrypt) and [SHA-512](crypt::sha512) are recommended
+//! for new passwords.
 //!
 //! Each algorithm is implemented in its own module, and offers three ways of
 //! using it:

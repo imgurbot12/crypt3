@@ -1,11 +1,4 @@
-//! MD5 based hash.
-//
-// Copyright (c) 2016 Ivan Nejgebauer <inejge@gmail.com>
-//
-// Licensed under the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>. This file may not be copied,
-// modified, or distributed except according to the terms of this
-// license.
+//! APR1-MD5 based hash.
 //!
 //! This algorithm was developed for FreeBSD to replace the
 //! aging DES crypt. It was adopted in various Linux distributions
@@ -35,7 +28,7 @@
 //! # Hash Format
 //!
 //! The format of the hash is
-//! __`$1$`__*`{salt}`*__$__*`{checksum}`*, where:
+//! __`$apr1$`__*`{salt}`*__$__*`{checksum}`*, where:
 //!
 //! * *`{salt}`* is the salt string.
 //!

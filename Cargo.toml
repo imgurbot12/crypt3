@@ -1,12 +1,19 @@
 [package]
 name = "crypt3_rs"
 version = "0.1.0"
+edition = "2024"
+authors = [
+  "Andrew Scott <imgurbot12@gmail.com>",
+  "Ivan Nejgebauer <inejge@gmail.com>"
+]
 
-readme = "README.md"
+description = "Unix crypt(3) reimplemented in pure rust."
+repository = "https://github.com/imgurbot12/crypt3"
+documentation = "https://docs.rs/crypt3_rs/"
+
 license = "MIT"
 keywords = ["password", "hash", "hashing", "crypt"]
 categories = ["cryptography", "authentication"]
-edition = "2024"
 
 [features]
 default = ["apr1", "bcrypt", "bsdi", "md5", "sha1", "sha2", "unix"]
