@@ -15,7 +15,7 @@
 //! # Example
 //!
 //! ```
-//! use crypt3::crypt::sha512;
+//! use crypt3_rs::crypt::sha512;
 //!
 //! let h =
 //!     "$6$G/gkPn17kHYo0gTF$xhDFU0QYExdMH2ghOWKrrVtu1BuTpNMSJ\

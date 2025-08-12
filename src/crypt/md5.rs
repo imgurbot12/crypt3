@@ -15,7 +15,7 @@
 //! # Example
 //!
 //! ```
-//! use crypt3::crypt::md5;
+//! use crypt3_rs::crypt::md5;
 //!
 //! assert_eq!(
 //!     md5::hash_with(

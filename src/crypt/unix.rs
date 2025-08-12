@@ -13,7 +13,7 @@
 //! # Example
 //!
 //! ```
-//! use crypt3::crypt::unix;
+//! use crypt3_rs::crypt::unix;
 //!
 //! assert_eq!(unix::hash_with("xO", "password").unwrap(), "xOAFZqRz5RduI");
 //! assert_eq!(unix::verify("password","xOAFZqRz5RduI"), true);

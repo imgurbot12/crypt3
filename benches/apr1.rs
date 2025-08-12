@@ -1,7 +1,7 @@
 use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 
-use crypt3::crypt::apr1;
+use crypt3_rs::crypt::apr1;
 
 fn hash() {
     #[allow(deprecated)]

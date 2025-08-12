@@ -46,6 +46,29 @@ pub enum Hash {
 }
 
 impl Hash {
+    /// Hash a password with same mechansim and parameters as base hash.
+    pub fn hash_with<B: AsRef<[u8]>>(&self, pass: B) -> Result<Self> {
+        #[allow(deprecated)]
+        match self {
+            #[cfg(feature = "apr1")]
+            Self::Apr1(hash) => crypt::apr1::hash_with(hash.0.as_str(), pass),
+            #[cfg(feature = "bcrypt")]
+            Self::Bcrypt(hash) => crypt::bcrypt::hash_with(hash.0.as_str(), pass),
+            #[cfg(feature = "bsdi")]
+            Self::Bsdi(hash) => crypt::bsdi::hash_with(hash.0.as_str(), pass),
+            #[cfg(feature = "md5")]
+            Self::Md5(hash) => crypt::md5::hash_with(hash.0.as_str(), pass),
+            #[cfg(feature = "sha1")]
+            Self::Sha1(hash) => crypt::sha1::hash_with(hash.0.as_str(), pass),
+            #[cfg(feature = "sha2")]
+            Self::Sha256(hash) => crypt::sha256::hash_with(hash.0.as_str(), pass),
+            #[cfg(feature = "sha2")]
+            Self::Sha512(hash) => crypt::sha512::hash_with(hash.0.as_str(), pass),
+            #[cfg(feature = "unix")]
+            Self::Unix(hash) => crypt::unix::hash_with(hash.0.as_str(), pass),
+        }
+    }
+
     /// Verify that the hash corresponds to a password.
     pub fn verify<B: AsRef<[u8]>>(&self, pass: B) -> bool {
         match self {
@@ -77,6 +100,29 @@ impl Hash {
     }
 }
 
+impl Into<String> for Hash {
+    fn into(self) -> String {
+        match self {
+            #[cfg(feature = "apr1")]
+            Self::Apr1(hash) => hash.0,
+            #[cfg(feature = "bcrypt")]
+            Self::Bcrypt(hash) => hash.0,
+            #[cfg(feature = "bsdi")]
+            Self::Bsdi(hash) => hash.0,
+            #[cfg(feature = "md5")]
+            Self::Md5(hash) => hash.0,
+            #[cfg(feature = "sha1")]
+            Self::Sha1(hash) => hash.0,
+            #[cfg(feature = "sha2")]
+            Self::Sha256(hash) => hash.0,
+            #[cfg(feature = "sha2")]
+            Self::Sha512(hash) => hash.0,
+            #[cfg(feature = "unix")]
+            Self::Unix(hash) => hash.0,
+        }
+    }
+}
+
 impl Deref for Hash {
     type Target = str;
 
@@ -99,6 +145,13 @@ impl Deref for Hash {
             #[cfg(feature = "unix")]
             Self::Unix(hash) => &hash.0,
         }
+    }
+}
+
+impl PartialEq<Hash> for Hash {
+    #[inline]
+    fn eq(&self, other: &Hash) -> bool {
+        self.as_str() == other.as_str()
     }
 }
 

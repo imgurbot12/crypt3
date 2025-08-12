@@ -15,7 +15,7 @@
 //! # Example
 //!
 //! ```
-//! use crypt3::crypt::sha256;
+//! use crypt3_rs::crypt::sha256;
 //!
 //! let h = "$5$rounds=11858$WH1ABM5sKhxbkgCK$\
 //!          aTQsjPkz0rBsH3lQlJxw9HDTDXPKBxC0LlVeV69P.t1";

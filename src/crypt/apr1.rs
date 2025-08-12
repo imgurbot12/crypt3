@@ -15,7 +15,7 @@
 //! # Example
 //!
 //! ```
-//! use crypt3::crypt::apr1;
+//! use crypt3_rs::crypt::apr1;
 //!
 //! assert_eq!(
 //!     apr1::hash_with(

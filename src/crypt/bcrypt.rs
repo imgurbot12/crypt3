@@ -18,7 +18,7 @@
 //! and default output variant (__2b__):
 //!
 //! ```
-//! use crypt3::crypt::bcrypt;
+//! use crypt3_rs::crypt::bcrypt;
 //!
 //! let hash = bcrypt::hash("password").unwrap();
 //! ```
@@ -27,7 +27,7 @@
 //! pick the salt and use the default cost:
 //!
 //! ```
-//! use crypt3::crypt::bcrypt::{self, BcryptSetup, BcryptVariant};
+//! use crypt3_rs::crypt::bcrypt::{self, BcryptSetup, BcryptVariant};
 //!
 //! let hash = bcrypt::hash_with(
 //!     BcryptSetup::default().variant(BcryptVariant::V2y),

@@ -15,7 +15,7 @@
 //! # Example
 //!
 //! ```
-//! use crypt3::{crypt::bsdi, HashSetup};
+//! use crypt3_rs::{crypt::bsdi, HashSetup};
 //!
 //! assert_eq!(
 //!     bsdi::hash_with(
