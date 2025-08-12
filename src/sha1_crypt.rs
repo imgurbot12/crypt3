@@ -54,29 +54,32 @@ use hmac::{Hmac, Mac};
 use sha1::Sha1;
 
 const MIN_ROUNDS: u32 = 1;
+const MAX_SALT_LEN: usize = 64;
+
 /// Default number of rounds.
 ///
 /// The value is aligned with the default used on NetBSD.
 pub const DEFAULT_ROUNDS: u32 = 24680;
-const MAX_SALT_LEN: usize = 64;
+
 /// Default salt length.
 pub const DEFAULT_SALT_LEN: usize = 8;
 
 fn do_sha1_crypt(pass: &[u8], salt: &str, rounds: u32) -> Result<String> {
     let mut dummy_buf = [0u8; 48];
     bcrypt_hash64_decode(salt, &mut dummy_buf)?;
+
     let mut hmac = Hmac::<Sha1>::new_from_slice(pass).map_err(|_| Error::InsufficientLength)?;
     hmac.update(format!("{salt}$sha1${rounds}").as_bytes());
+
     let mut result = hmac.finalize();
     for _ in 1..rounds {
-        let mut hmac = Hmac::<Sha1>::new_from_slice(pass).map_err(|_| Error::InsufficientLength)?;
+        hmac = Hmac::new_from_slice(pass).map_err(|_| Error::InsufficientLength)?;
         hmac.update(&result.into_bytes());
         result = hmac.finalize();
     }
+
     Ok(format!(
-        "$sha1${}${}${}",
-        rounds,
-        salt,
+        "$sha1${rounds}${salt}${}",
         sha1crypt_hash64_encode(&result.into_bytes())
     ))
 }
@@ -86,6 +89,7 @@ fn do_sha1_crypt(pass: &[u8], salt: &str, rounds: u32) -> Result<String> {
 ///
 /// An error is returned if the system random number generator cannot
 /// be opened.
+#[inline]
 pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
     let saltstr = random::gen_salt_str(DEFAULT_SALT_LEN);
     do_sha1_crypt(pass.as_ref(), &saltstr, random::vary_rounds(DEFAULT_ROUNDS))
@@ -98,18 +102,14 @@ fn parse_sha1_hash(hash: &str) -> Result<HashSetup> {
     if hs.take(MAGIC_LEN).unwrap_or("X") != "$sha1$" {
         return Err(Error::InvalidHashString);
     }
-    let rounds = if let Some(rounds_str) = hs.take_until(b'$') {
-        rounds_str
-            .parse::<u32>()
-            .map_err(|_e| Error::InvalidRounds)?
-    } else {
-        return Err(Error::InvalidHashString);
-    };
-    let salt = if let Some(salt) = hs.take_until(b'$') {
-        salt
-    } else {
-        return Err(Error::InvalidHashString);
-    };
+
+    let rounds = hs
+        .take_until(b'$')
+        .ok_or(Error::InvalidHashString)?
+        .parse::<u32>()
+        .map_err(|_e| Error::InvalidRounds)?;
+    let salt = hs.take_until(b'$').ok_or(Error::InvalidHashString)?;
+
     Ok(HashSetup {
         salt: Some(salt),
         rounds: Some(rounds),
@@ -138,22 +138,21 @@ where
     } else {
         random::vary_rounds(DEFAULT_ROUNDS)
     };
+
     if let Some(salt) = hs.salt {
-        let salt = if salt.len() <= MAX_SALT_LEN {
-            salt
-        } else if let Some(truncated_salt) = parse::HashSlice::new(salt).take(MAX_SALT_LEN) {
-            truncated_salt
-        } else {
-            return Err(Error::InvalidHashString);
-        };
-        do_sha1_crypt(pass.as_ref(), salt, rounds)
-    } else {
-        let salt = random::gen_salt_str(DEFAULT_SALT_LEN);
-        do_sha1_crypt(pass.as_ref(), &salt, rounds)
+        let salt = (salt.len() <= MAX_SALT_LEN)
+            .then_some(salt)
+            .or_else(|| parse::HashSlice::new(salt).take(MAX_SALT_LEN))
+            .ok_or(Error::InvalidHashString)?;
+        return do_sha1_crypt(pass.as_ref(), salt, rounds);
     }
+
+    let salt = random::gen_salt_str(DEFAULT_SALT_LEN);
+    do_sha1_crypt(pass.as_ref(), &salt, rounds)
 }
 
 /// Verify that the hash corresponds to a password.
+#[inline]
 pub fn verify<B: AsRef<[u8]>>(pass: B, hash: &str) -> bool {
     consteq(hash, hash_with(hash, pass))
 }

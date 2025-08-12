@@ -77,10 +77,14 @@ use std::{fmt, iter};
 const MAX_PASS_LEN: usize = 72;
 const DEFAULT_VARIANT: BcryptVariant = BcryptVariant::V2b;
 const ENC_SALT_LEN: usize = 22;
+const MAGIC_LEN: usize = 4;
+
 /// Minimum cost.
 pub const MIN_COST: u32 = 4;
+
 /// Maximum cost.
 pub const MAX_COST: u32 = 31;
+
 /// Default cost.
 pub const DEFAULT_COST: u32 = 10;
 
@@ -128,15 +132,12 @@ pub enum BcryptVariant {
 
 impl fmt::Display for BcryptVariant {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match *self {
-                BcryptVariant::V2a => "2a",
-                BcryptVariant::V2b => "2b",
-                BcryptVariant::V2y => "2y",
-            }
-        )
+        let variant = match self {
+            BcryptVariant::V2a => "2a",
+            BcryptVariant::V2b => "2b",
+            BcryptVariant::V2y => "2y",
+        };
+        write!(f, "{variant}")
     }
 }
 
@@ -159,8 +160,6 @@ pub trait IntoBcryptSetup<'a> {
     fn into_bcrypt_setup(self) -> Result<BcryptSetup<'a>>;
 }
 
-const MAGIC_LEN: usize = 4;
-
 impl<'a> IntoBcryptSetup<'a> for &'a str {
     fn into_bcrypt_setup(self) -> Result<BcryptSetup<'a>> {
         let mut hs = parse::HashSlice::new(self);
@@ -170,23 +169,18 @@ impl<'a> IntoBcryptSetup<'a> for &'a str {
             "$2y$" => BcryptVariant::V2y,
             _ => return Err(Error::InvalidHashString),
         };
-        let cost = if let Some(cost_str) = hs.take_until(b'$') {
-            if cost_str.len() != 2 {
-                return Err(Error::InvalidHashString);
-            }
-            let cost = cost_str.parse::<u32>().map_err(|_e| Error::InvalidRounds)?;
-            if cost < 10 && !cost_str.starts_with('0') {
-                return Err(Error::InvalidHashString);
-            }
-            cost
-        } else {
+
+        let cost_str = hs.take_until(b'$').ok_or(Error::InvalidHashString)?;
+        if cost_str.len() != 2 {
             return Err(Error::InvalidHashString);
-        };
-        let salt = if let Some(salt) = hs.take(ENC_SALT_LEN) {
-            salt
-        } else {
+        }
+
+        let cost: u32 = cost_str.parse().map_err(|_e| Error::InvalidRounds)?;
+        if cost < 10 && !cost_str.starts_with('0') {
             return Err(Error::InvalidHashString);
-        };
+        }
+
+        let salt = hs.take(ENC_SALT_LEN).ok_or(Error::InvalidHashString)?;
         Ok(BcryptSetup {
             salt: Some(salt),
             cost: Some(cost),
@@ -228,7 +222,6 @@ fn bcrypt(cost: u32, salt: &[u8], password: &[u8], output: &mut [u8]) {
     assert!(output.len() == 24);
 
     let mut state = Blowfish::bc_init_state();
-
     state.salted_expand_key(salt, password);
     for _ in 0..1u32 << cost {
         state.bc_expand_key(password);
@@ -250,19 +243,19 @@ fn bcrypt(cost: u32, salt: &[u8], password: &[u8], output: &mut [u8]) {
 }
 
 fn do_bcrypt(pass: &[u8], salt: &[u8], cost: u32, variant: BcryptVariant) -> Result<String> {
-    let mut upd_pass = pass
+    let mut upd_pass: Vec<_> = pass
         .iter()
         .copied()
         .chain(iter::repeat(0u8))
         .take(min(pass.len() + 1, MAX_PASS_LEN))
-        .collect::<Vec<_>>();
+        .collect();
+
     let mut output = [0u8; 24];
     bcrypt(cost, salt, &upd_pass[..], &mut output);
     upd_pass.fill(0u8);
+
     Ok(format!(
-        "${}${:02}${}{}",
-        variant,
-        cost,
+        "${variant}${cost:02}${}{}",
         bcrypt_hash64_encode(salt),
         bcrypt_hash64_encode(&output[..23])
     ))
@@ -273,6 +266,7 @@ fn do_bcrypt(pass: &[u8], salt: &[u8], cost: u32, variant: BcryptVariant) -> Res
 ///
 /// An error is returned if the system random number generator cannot
 /// be opened.
+#[inline]
 pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
     let mut salt_buf = [0u8; 16];
     random::gen_salt_bytes(&mut salt_buf);
@@ -300,21 +294,18 @@ where
     } else {
         DEFAULT_COST
     };
-    let variant = if let Some(v) = bs.variant {
-        v
-    } else {
-        DEFAULT_VARIANT
-    };
+
+    let variant = bs.variant.unwrap_or(DEFAULT_VARIANT);
     let mut salt_buf = [0u8; 16];
-    if bs.salt.is_some() {
-        bcrypt_hash64_decode(bs.salt.unwrap(), &mut salt_buf)?;
-    } else {
-        random::gen_salt_bytes(&mut salt_buf);
+    match bs.salt {
+        Some(salt) => bcrypt_hash64_decode(salt, &mut salt_buf)?,
+        None => random::gen_salt_bytes(&mut salt_buf),
     }
     do_bcrypt(pass.as_ref(), &salt_buf, cost, variant)
 }
 
 /// Verify that the hash corresponds to a password.
+#[inline]
 pub fn verify<B: AsRef<[u8]>>(pass: B, hash: &str) -> bool {
     consteq(hash, hash_with(hash, pass))
 }

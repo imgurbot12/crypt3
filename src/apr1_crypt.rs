@@ -46,9 +46,11 @@ use crate::md5_crypt::do_md5_crypt;
 use crate::parse::{self, HashIterator};
 use crate::random;
 
+const APR1_MAGIC: &str = "$apr1$";
+const MAGIC_LEN: usize = APR1_MAGIC.len();
+
 /// Maximium salt length.
 pub const MAX_SALT_LEN: usize = 8;
-const APR1_MAGIC: &str = "$apr1$";
 
 /// Hash a password with a randomly generated salt.
 ///
@@ -60,18 +62,12 @@ pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
     do_md5_crypt(pass.as_ref(), &saltstr, APR1_MAGIC)
 }
 
-const MAGIC_LEN: usize = 6;
-
 fn parse_md5_hash(hash: &str) -> Result<HashSetup> {
     let mut hs = parse::HashSlice::new(hash);
     if hs.take(MAGIC_LEN).unwrap_or("X") != APR1_MAGIC {
         return Err(Error::InvalidHashString);
     }
-    let salt = if let Some(salt) = hs.take_until(b'$') {
-        salt
-    } else {
-        return Err(Error::InvalidHashString);
-    };
+    let salt = hs.take_until(b'$').ok_or(Error::InvalidHashString)?;
     Ok(HashSetup {
         salt: Some(salt),
         rounds: None,
@@ -91,22 +87,18 @@ where
     B: AsRef<[u8]>,
 {
     let hs = IHS::into_hash_setup(param, parse_md5_hash)?;
-    if let Some(salt) = hs.salt {
-        let salt = if salt.len() <= MAX_SALT_LEN {
-            salt
-        } else if let Some(truncated_salt) = parse::HashSlice::new(salt).take(MAX_SALT_LEN) {
-            truncated_salt
-        } else {
-            return Err(Error::InvalidHashString);
-        };
-        do_md5_crypt(pass.as_ref(), salt, APR1_MAGIC)
-    } else {
-        let salt = random::gen_salt_str(MAX_SALT_LEN);
-        do_md5_crypt(pass.as_ref(), &salt, APR1_MAGIC)
-    }
+    let salt = match hs.salt {
+        None => &random::gen_salt_str(MAX_SALT_LEN),
+        Some(salt) => (salt.len() <= MAX_SALT_LEN)
+            .then_some(salt)
+            .or_else(|| parse::HashSlice::new(salt).take(MAX_SALT_LEN))
+            .ok_or(Error::InvalidHashString)?,
+    };
+    do_md5_crypt(pass.as_ref(), salt, APR1_MAGIC)
 }
 
 /// Verify that the hash corresponds to a password.
+#[inline]
 pub fn verify<B: AsRef<[u8]>>(pass: B, hash: &str) -> bool {
     #[allow(deprecated)]
     consteq(hash, hash_with(hash, pass))

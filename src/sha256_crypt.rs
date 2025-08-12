@@ -61,6 +61,7 @@ const SHA256_MAGIC: &str = "$5$";
 const SHA256_TRANSPOSE: &[u8] = b"\x14\x0a\x00\x0b\x01\x15\x02\x16\x0c\x17\x0d\x03\x0e\x04\x18\x05\
 					  \x19\x0f\x1a\x10\x06\x11\x07\x1b\x08\x1c\x12\x1d\x13\x09\x1e\x1f";
 
+#[inline]
 fn do_sha256_crypt(pass: &[u8], salt: &str, rounds: Option<u32>) -> Result<String> {
     sha2_crypt(
         pass,
@@ -83,6 +84,7 @@ pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
     do_sha256_crypt(pass.as_ref(), &saltstr, None)
 }
 
+#[inline]
 fn parse_sha256_hash(hash: &str) -> Result<HashSetup> {
     parse_sha2_hash(hash, SHA256_MAGIC)
 }
@@ -95,6 +97,7 @@ fn parse_sha256_hash(hash: &str) -> Result<HashSetup> {
 /// an invalid character, an error is returned. An out-of-range rounds value
 /// will be coerced into the allowed range.
 #[deprecated(since = "0.2.0", note = "don't use this algorithm for new passwords")]
+#[inline]
 pub fn hash_with<'a, IHS, B>(param: IHS, pass: B) -> Result<String>
 where
     IHS: IntoHashSetup<'a>,
@@ -108,6 +111,7 @@ where
 }
 
 /// Verify that the hash corresponds to a password.
+#[inline]
 pub fn verify<B: AsRef<[u8]>>(pass: B, hash: &str) -> bool {
     #[allow(deprecated)]
     consteq(hash, hash_with(hash, pass))

@@ -65,10 +65,12 @@ pub fn bcrypt_hash64_decode(enc: &str, decbuf: &mut [u8]) -> Result<()> {
     Ok(())
 }
 
+#[inline]
 pub fn bcrypt_hash64_encode(bs: &[u8]) -> String {
     b_c_hash64_encode(bs, BCRYPT_HASH64)
 }
 
+#[inline]
 pub fn crypt_hash64_encode(bs: &[u8]) -> String {
     b_c_hash64_encode(bs, CRYPT_HASH64)
 }

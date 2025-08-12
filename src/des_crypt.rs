@@ -1971,6 +1971,7 @@ pub fn des_cipher(input: u64, keyword: u64, salt: u32, mut num_iter: u32) -> u64
 use crate::enc_dec::{crypt_hash64_encode, decode_val, encode_val};
 use std::iter;
 
+#[inline]
 fn secret_to_key(key: &[u8]) -> u64 {
     key.iter()
         .chain(iter::repeat(&0u8))

@@ -64,6 +64,7 @@ const ROUNDS_LEN: usize = 4;
 /// An error is returned if the system random number generator cannot
 /// be opened.
 #[deprecated(since = "0.2.0", note = "don't use this algorithm for new passwords")]
+#[inline]
 pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
     let saltstr = random::gen_salt_str(SALT_LEN);
     bsdi_crypt(pass.as_ref(), &saltstr, DEFAULT_ROUNDS)
@@ -74,16 +75,13 @@ fn parse_bsdi_hash(hash: &str) -> Result<HashSetup> {
     if hs.take(1).unwrap_or("X") != "_" {
         return Err(Error::InvalidHashString);
     }
-    let rounds = if let Some(rounds_enc) = hs.take(ROUNDS_LEN) {
-        decode_val(rounds_enc, SALT_LEN)?
-    } else {
-        return Err(Error::InvalidHashString);
-    };
-    let salt = if let Some(salt) = hs.take(SALT_LEN) {
-        salt
-    } else {
-        return Err(Error::InvalidHashString);
-    };
+
+    let rounds = hs
+        .take(ROUNDS_LEN)
+        .map(|rounds| decode_val(rounds, SALT_LEN))
+        .ok_or(Error::InvalidHashString)??;
+    let salt = hs.take(SALT_LEN).ok_or(Error::InvalidHashString)?;
+
     Ok(HashSetup {
         salt: Some(salt),
         rounds: Some(rounds),
@@ -111,15 +109,17 @@ where
     } else {
         DEFAULT_ROUNDS
     };
-    if hs.salt.is_some() {
-        bsdi_crypt(pass.as_ref(), hs.salt.unwrap(), rounds)
-    } else {
-        let saltstr = random::gen_salt_str(SALT_LEN);
-        bsdi_crypt(pass.as_ref(), &saltstr, rounds)
+    match hs.salt {
+        Some(salt) => bsdi_crypt(pass.as_ref(), salt, rounds),
+        None => {
+            let saltstr = random::gen_salt_str(SALT_LEN);
+            bsdi_crypt(pass.as_ref(), &saltstr, rounds)
+        }
     }
 }
 
 /// Verify that the hash corresponds to a password.
+#[inline]
 pub fn verify<B: AsRef<[u8]>>(pass: B, hash: &str) -> bool {
     #[allow(deprecated)]
     consteq(hash, hash_with(hash, pass))

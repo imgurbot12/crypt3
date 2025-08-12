@@ -53,7 +53,7 @@
 //!
 //! Currently, there are implementations of seven algorithms, which should
 //! cover anything one might find as a system-wide hash on a free Unix-like
-//! OS: [bcrypt](bcrypt), [SHA-512](sha512_crypt), [SHA-256](sha256_crypt),
+//! OS: [bcrypt], [SHA-512](sha512_crypt), [SHA-256](sha256_crypt),
 //! [HMAC-SHA1](sha1_crypt), [MD5](md5_crypt), [BSDi crypt](bsdi_crypt), and
 //! [DES crypt](unix_crypt). The list is ordered roughly by security, with the
 //! most secure algorithms first. The first two are recommended for new
@@ -76,7 +76,7 @@
 //! except DES crypt accept a `HashSetup` struct as a means of customization,
 //! while bcrypt also has its own setup structure (see the module documenation.)
 //!
-//! The [unix](unix) module provides a __crypt__(3)-compatible function and a
+//! The [unix] module provides a __crypt__(3)-compatible function and a
 //! `verify` which uses it to automatically recognize the algorithm of the
 //! provided hash.
 
@@ -169,18 +169,9 @@ impl FindNul for [u8] {
     }
 }
 
+#[inline]
 fn consteq(hash: &str, calchash: Result<String>) -> bool {
-    if calchash.is_err() {
-        return false;
-    }
-    let hstr = calchash.unwrap();
-    if hash.len() != hstr.len() {
-        return false;
-    }
-    0 == hash
-        .bytes()
-        .zip(hstr.bytes())
-        .fold(0, |xs, (h1, h2)| xs | h1 ^ h2)
+    calchash.ok().map(|hstr| hash == hstr).unwrap_or_default()
 }
 
 mod random {

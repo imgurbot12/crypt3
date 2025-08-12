@@ -88,7 +88,6 @@ pub(crate) fn do_md5_crypt(pass: &[u8], salt: &str, magic: &str) -> Result<Strin
     }
 
     let mut hash_a = dgst_a.finalize();
-
     for r in 0..1000 {
         let mut dgst_a = Md5::new();
         if r % 2 == 1 {
@@ -113,11 +112,7 @@ pub(crate) fn do_md5_crypt(pass: &[u8], salt: &str, magic: &str) -> Result<Strin
     for (i, &ti) in MD5_TRANSPOSE.iter().enumerate() {
         hash_b[i] = hash_a[ti as usize];
     }
-    Ok(format!(
-        "{magic}{}${}",
-        salt,
-        md5_sha2_hash64_encode(&hash_b)
-    ))
+    Ok(format!("{magic}{salt}${}", md5_sha2_hash64_encode(&hash_b)))
 }
 
 /// Hash a password with a randomly generated salt.
@@ -125,6 +120,7 @@ pub(crate) fn do_md5_crypt(pass: &[u8], salt: &str, magic: &str) -> Result<Strin
 /// An error is returned if the system random number generator cannot
 /// be opened.
 #[deprecated(since = "0.2.0", note = "don't use this algorithm for new passwords")]
+#[inline]
 pub fn hash<B: AsRef<[u8]>>(pass: B) -> Result<String> {
     let saltstr = random::gen_salt_str(MAX_SALT_LEN);
     do_md5_crypt(pass.as_ref(), &saltstr, MD5_MAGIC)
@@ -137,11 +133,8 @@ fn parse_md5_hash(hash: &str) -> Result<HashSetup> {
     if hs.take(MAGIC_LEN).unwrap_or("X") != MD5_MAGIC {
         return Err(Error::InvalidHashString);
     }
-    let salt = if let Some(salt) = hs.take_until(b'$') {
-        salt
-    } else {
-        return Err(Error::InvalidHashString);
-    };
+
+    let salt = hs.take_until(b'$').ok_or(Error::InvalidHashString)?;
     Ok(HashSetup {
         salt: Some(salt),
         rounds: None,
@@ -161,22 +154,18 @@ where
     B: AsRef<[u8]>,
 {
     let hs = IHS::into_hash_setup(param, parse_md5_hash)?;
-    if let Some(salt) = hs.salt {
-        let salt = if salt.len() <= MAX_SALT_LEN {
-            salt
-        } else if let Some(truncated_salt) = parse::HashSlice::new(salt).take(MAX_SALT_LEN) {
-            truncated_salt
-        } else {
-            return Err(Error::InvalidHashString);
-        };
-        do_md5_crypt(pass.as_ref(), salt, MD5_MAGIC)
-    } else {
-        let salt = random::gen_salt_str(MAX_SALT_LEN);
-        do_md5_crypt(pass.as_ref(), &salt, MD5_MAGIC)
-    }
+    let salt = match hs.salt {
+        None => &random::gen_salt_str(MAX_SALT_LEN),
+        Some(salt) => (salt.len() <= MAX_SALT_LEN)
+            .then_some(salt)
+            .or_else(|| parse::HashSlice::new(salt).take(MAX_SALT_LEN))
+            .ok_or(Error::InvalidHashString)?,
+    };
+    do_md5_crypt(pass.as_ref(), salt, MD5_MAGIC)
 }
 
 /// Verify that the hash corresponds to a password.
+#[inline]
 pub fn verify<B: AsRef<[u8]>>(pass: B, hash: &str) -> bool {
     #[allow(deprecated)]
     consteq(hash, hash_with(hash, pass))

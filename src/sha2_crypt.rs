@@ -65,7 +65,6 @@ pub fn sha2_crypt<D: Digest>(
         }
         p >>= 1;
     }
-
     let mut hash_a = dgst_a.finalize();
 
     let mut dgst_b = new_digest();
@@ -73,6 +72,7 @@ pub fn sha2_crypt<D: Digest>(
         dgst_b.update(pass);
     }
     hash_b = dgst_b.finalize();
+
     let mut dgst_b = new_digest();
     let mut seq_p = Vec::<u8>::with_capacity(plen.div_ceil(dsize) * dsize);
     p = plen;
@@ -117,16 +117,11 @@ pub fn sha2_crypt<D: Digest>(
 
     match rounds {
         Some(rounds) => Ok(format!(
-            "{}rounds={}${}${}",
-            magic,
-            rounds,
-            salt,
+            "{magic}rounds={rounds}${salt}${}",
             md5_sha2_hash64_encode(&hash_b[..dsize])
         )),
         None => Ok(format!(
-            "{}{}${}",
-            magic,
-            salt,
+            "{magic}{salt}${}",
             md5_sha2_hash64_encode(&hash_b[..dsize])
         )),
     }
@@ -139,30 +134,23 @@ pub fn parse_sha2_hash<'a>(hash: &'a str, magic: &str) -> Result<HashSetup<'a>> 
     if hs.take(MAGIC_LEN).unwrap_or("X") != magic {
         return Err(Error::InvalidHashString);
     }
-    let maybe_rounds = if let Some(elem) = hs.take_until(b'$') {
-        elem
-    } else {
-        return Err(Error::InvalidHashString);
-    };
-    let rounds = if maybe_rounds.starts_with("rounds=") {
-        let mut rhs = parse::HashSlice::new(maybe_rounds);
-        rhs.take_until(b'=');
-        Some(
-            rhs.take_until(b'$')
+
+    let maybe_rounds = hs.take_until(b'$').ok_or(Error::InvalidHashString)?;
+    let (rounds, salt) = match maybe_rounds.starts_with("rounds=") {
+        false => (None, maybe_rounds),
+        true => {
+            let mut rhs = parse::HashSlice::new(maybe_rounds);
+            rhs.take_until(b'=');
+            let rounds = rhs
+                .take_until(b'$')
                 .unwrap()
                 .parse::<u32>()
-                .map_err(|_e| Error::InvalidRounds)?,
-        )
-    } else {
-        None
+                .map_err(|_e| Error::InvalidRounds)?;
+            let salt = hs.take_until(b'$').ok_or(Error::InvalidHashString)?;
+            (Some(rounds), salt)
+        }
     };
-    let salt = if rounds.is_none() {
-        maybe_rounds
-    } else if let Some(salt) = hs.take_until(b'$') {
-        salt
-    } else {
-        return Err(Error::InvalidHashString);
-    };
+
     Ok(HashSetup {
         salt: Some(salt),
         rounds,
@@ -174,28 +162,13 @@ pub fn sha2_hash_with(
     pass: &[u8],
     hf: fn(&[u8], &str, Option<u32>) -> Result<String>,
 ) -> Result<String> {
-    let rounds = if let Some(r) = param.rounds {
-        if r < MIN_ROUNDS {
-            Some(MIN_ROUNDS)
-        } else if r > MAX_ROUNDS {
-            Some(MAX_ROUNDS)
-        } else {
-            Some(r)
-        }
-    } else {
-        None
+    let rounds = param.rounds.map(|r| r.clamp(MIN_ROUNDS, MAX_ROUNDS));
+    let salt = match param.salt {
+        None => &random::gen_salt_str(MAX_SALT_LEN),
+        Some(salt) => (salt.len() <= MAX_SALT_LEN)
+            .then_some(salt)
+            .or_else(|| parse::HashSlice::new(salt).take(MAX_SALT_LEN))
+            .ok_or(Error::InvalidHashString)?,
     };
-    if let Some(salt) = param.salt {
-        let salt = if salt.len() <= MAX_SALT_LEN {
-            salt
-        } else if let Some(truncated_salt) = parse::HashSlice::new(salt).take(MAX_SALT_LEN) {
-            truncated_salt
-        } else {
-            return Err(Error::InvalidHashString);
-        };
-        hf(pass, salt, rounds)
-    } else {
-        let salt = random::gen_salt_str(MAX_SALT_LEN);
-        hf(pass, &salt, rounds)
-    }
+    hf(pass, salt, rounds)
 }
